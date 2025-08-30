@@ -1,17 +1,58 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { motion } from "framer-motion";
 import RouletteWheel from "./components/RouletteWheel";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import RecentNumbers from "./components/RecentNumbers";
 import QuickButtons from "./components/QuickButtons";
-import NumberInput from "./components/NumberInput";
-import ColorPrediction from "./components/ColorPrediction";
-import ColumnPrediction from "./components/ColumnPrediction";
 
 const STORAGE_KEY = "roulette_state_v2";
 const HISTORY_CAP = 500;
 const RECENT_CAP = 12;
+
+function NumberInput({ numbersInput, setNumbersInput, onAddNumber }) {
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      handleAddClick();
+    }
+  };
+
+  const handleAddClick = () => {
+    const num = parseInt(numbersInput);
+    if (!isNaN(num) && num >= 0 && num <= 36) {
+      onAddNumber(num);
+      setNumbersInput("");
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex w-full max-w-xs shadow-lg rounded-lg overflow-hidden bg-gray-700 border border-gray-600"
+    >
+      <input
+        type="number"
+        min="0"
+        max="36"
+        placeholder="Number (0-36)"
+        value={numbersInput}
+        onChange={(e) => setNumbersInput(e.target.value)}
+        onKeyDown={handleKeyPress}
+        className="flex-1 p-2 border-0 bg-transparent outline-none text-white text-sm placeholder-gray-400"
+      />
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={handleAddClick}
+        className="px-3 bg-amber-600 text-white text-sm font-medium hover:bg-amber-500 transition-all"
+      >
+        Add
+      </motion.button>
+    </motion.div>
+  );
+}
 
 export default function App() {
   const [numbersInput, setNumbersInput] = useState("");
@@ -23,7 +64,6 @@ export default function App() {
     "25-36": 0,
   });
   const [recentItems, setRecentItems] = useState([]);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load from localStorage
   useEffect(() => {
@@ -41,14 +81,11 @@ export default function App() {
       }
     } catch (e) {
       console.warn("Failed to load roulette state:", e);
-    } finally {
-      setIsLoaded(true); // Mark as loaded
     }
   }, []);
 
   // Save to localStorage
   useEffect(() => {
-    if (!isLoaded) return;
     try {
       const payload = JSON.stringify({
         numbersInput,
@@ -61,7 +98,7 @@ export default function App() {
     } catch (e) {
       console.warn("Failed to save roulette state:", e);
     }
-  }, [numbersInput, history, topDozens, dozenCounts, recentItems, isLoaded]);
+  }, [numbersInput, history, topDozens, dozenCounts, recentItems]);
 
   const lastSpinIdRef = useRef(null);
   const lastAppendTimeRef = useRef(0);
@@ -173,12 +210,21 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 relative overflow-hidden">
       <div className="absolute inset-0 opacity-30">
         {[...Array(10)].map((_, i) => (
-          <div
+          <motion.div
             key={i}
             className="absolute w-4 h-4 bg-white rounded-full opacity-10"
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              y: [0, -20, 0],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              duration: 3 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2,
             }}
           />
         ))}
@@ -186,16 +232,30 @@ export default function App() {
 
       <div className="relative z-10 container mx-auto px-3 py-4 max-w-7xl">
         {/* Header */}
-        <header className="text-center mb-4">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
+        <motion.header
+          initial={{ y: -30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="text-center mb-4"
+        >
+          <motion.h1
+            className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent"
+            animate={{
+              scale: [1, 1.01, 1],
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
             Roulette Analyzer
-          </h1>
-        </header>
+          </motion.h1>
+        </motion.header>
 
         {/* Main Content - Modified layout */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-3">
           {/* Wheel Container */}
-          <div className="lg:col-span-1 bg-gray-800 bg-opacity-50 backdrop-blur-md rounded-xl p-3 border border-gray-700 flex flex-col items-center">
+          <motion.div
+            initial={{ x: -30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="lg:col-span-1 bg-gray-800 bg-opacity-50 backdrop-blur-md rounded-xl p-3 border border-gray-700 flex flex-col items-center"
+          >
             <RouletteWheel onSpinResult={handleSpinResult} size={280} />
 
             {/* Manual Input - Now on the right side of wheel */}
@@ -213,51 +273,55 @@ export default function App() {
 
               {/* Action Buttons */}
               <div className="flex justify-center gap-2 mt-2">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={removeLast}
                   className="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-500"
                   title="Undo Last"
                 >
                   ↩ Undo
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleClear}
                   className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-500"
                   title="Clear All"
                 >
                   × Clear
-                </button>
+                </motion.button>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Quick Buttons Container */}
-          <div className="lg:col-span-2 bg-gray-800 bg-opacity-50 backdrop-blur-md rounded-xl p-3 border border-gray-700">
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="lg:col-span-2 bg-gray-800 bg-opacity-50 backdrop-blur-md rounded-xl p-3 border border-gray-700"
+          >
             <QuickButtons onAddNumber={addNumber} onBet={handleBet} />
-
-            {/* Recent Numbers - Now placed below the QuickButtons board */}
-            <div className="mt-4">
-              <RecentNumbers
-                items={recentItems}
-                onRemoveLast={removeLast}
-                onMarkOutcome={markRecentOutcome}
-              />
-
-              {/* Color and Column Predictions */}
-              <ColorPrediction history={history} />
-              <ColumnPrediction history={history} />
-            </div>
-          </div>
+          </motion.div>
 
           {/* Analytics - Made smaller */}
-          <div className="lg:col-span-1 bg-gray-800 bg-opacity-50 backdrop-blur-md rounded-xl p-3 border border-gray-700">
+          <motion.div
+            initial={{ x: 30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="lg:col-span-1 bg-gray-800 bg-opacity-50 backdrop-blur-md rounded-xl p-3 border border-gray-700"
+          >
             <AnalyticsDashboard
               history={history}
               topDozens={topDozens}
               dozenCounts={dozenCounts}
               onRemoveLast={removeLast}
             />
-          </div>
+            <RecentNumbers
+              items={recentItems}
+              onRemoveLast={removeLast}
+              onMarkOutcome={markRecentOutcome}
+            />
+          </motion.div>
         </div>
       </div>
     </div>
