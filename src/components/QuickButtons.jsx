@@ -1,37 +1,11 @@
 "use client";
 
-/**
- * CasinoRouletteBoard
- * - Proper roulette felt layout (European single zero)
- * - 0 spans the left side (3 rows)
- * - 1–36 arranged as a 3×12 grid (top row: 3,6,...,36; middle: 2,5,...,35; bottom: 1,4,...,34)
- * - "2 TO 1" column on the right aligned with each row
- * - Dozens and outside bets aligned beneath the numbers
- *
- * Props:
- * - onAddNumber?: (n: number) => void
- * - onBet?: (id: string) => void
- * - disabled?: boolean
- *
- * Color system (max 5 total):
- * - Primary: emerald (felt)
- * - Neutrals: white, black
- * - Accent: red (numbers), amber (gold accent for borders/focus)
- */
-export default function CasinoRouletteBoard({
-  onAddNumber,
-  onBet,
-  disabled = false,
-}) {
+export default function QuickButtons({ onAddNumber, onBet, disabled = false }) {
   const redNumbers = new Set([
     1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
   ]);
 
   const numberAt = (rowIndex, colIndex) => {
-    // colIndex: 0..11, rowIndex: 0..2 (0=top, 1=middle, 2=bottom)
-    // Top row: 3, 6, ..., 36 => 3*(col+1)
-    // Mid row: 2, 5, ..., 35 => 3*(col+1)-1
-    // Bot row: 1, 4, ..., 34 => 3*(col+1)-2
     const base = 3 * (colIndex + 1);
     if (rowIndex === 0) return base;
     if (rowIndex === 1) return base - 1;
@@ -236,21 +210,3 @@ export default function CasinoRouletteBoard({
     </div>
   );
 }
-
-/*
-Usage:
-
-import CasinoRouletteBoard from '@/components/casino-roulette-board'
-
-export default function Page() {
-  return (
-    <main className="p-4">
-      <CasinoRouletteBoard
-        onAddNumber={(n) => console.log('Number bet:', n)}
-        onBet={(id) => console.log('Outside bet:', id)}
-      />
-    </main>
-  )
-}
-
-*/

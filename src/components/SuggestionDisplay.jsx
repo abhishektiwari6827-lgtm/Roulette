@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -64,8 +63,8 @@ export default function SuggestionDisplay({ topDozens }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
-          <TargetIcon className="text-emerald-600" />
-          <h3 className="text-lg font-semibold text-foreground text-pretty">
+          <TargetIcon className="text-amber-400" />
+          <h3 className="text-lg font-semibold text-white text-pretty">
             Suggested Dozens
           </h3>
         </motion.div>
@@ -73,7 +72,7 @@ export default function SuggestionDisplay({ topDozens }) {
         {/* Container with subtle update pulse */}
         <motion.div
           key={keySig}
-          className="rounded-xl bg-emerald-950/40 p-2 ring-1 ring-emerald-900/50"
+          className="rounded-xl bg-gray-700 p-2 ring-1 ring-amber-500/30"
           initial={false}
           animate={{
             boxShadow: changed
@@ -112,26 +111,9 @@ export default function SuggestionDisplay({ topDozens }) {
                     mass: 0.5,
                   }}
                   aria-label={`Suggested dozen ${d}`}
-                  className="
-                    group relative overflow-hidden
-                    rounded-full px-3 py-1.5 text-sm font-medium
-                    text-white bg-emerald-600 hover:bg-emerald-700
-                    shadow-[0_4px_0_rgba(0,0,0,0.25)]
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400
-                    focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900
-                    transition-colors
-                    active:translate-y-[1px] active:shadow-[0_3px_0_rgba(0,0,0,0.25)]
-                  "
+                  className="rounded-full px-3 py-1.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 shadow-[0_4px_0_rgba(0,0,0,0.25)] transition-colors"
                 >
                   <span className="relative z-10">{d}</span>
-
-                  {/* Soft gloss sweep on hover */}
-                  <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <span className="absolute -left-1/2 top-0 h-full w-[120%] rotate-12 bg-white/10 blur-sm" />
-                  </span>
-
-                  {/* Subtle inner ring for depth */}
-                  <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-white/10" />
                 </motion.button>
               ))}
             </AnimatePresence>

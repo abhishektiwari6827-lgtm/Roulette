@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview","predeploy": "npm run build",
-  "deploy": "gh-pages -d dist"
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
-  "homepage": "https://Abhishek6827.github.io/Roulette",
+  "homepage": "https://abhishek6827.github.io/Roulette"
+,
   "dependencies": {
     "framer-motion": "^12.23.12",
     "react": "^19.1.1",

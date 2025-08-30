@@ -6,19 +6,33 @@ export default function AnalyticsDashboard({
   history = [],
   topDozens = [],
   dozenCounts = { "1-12": 0, "13-24": 0, "25-36": 0 },
-  onRemoveLast, // optional undo control
+  onRemoveLast,
 }) {
-  const lastNumbers = history.slice(-15);
+  const last50Numbers = history.slice(0, 50); // Last 50 numbers
 
-  // Frequency Map
+  // Frequency Map for last 50 numbers
   const freqMap = {};
-  lastNumbers.forEach((n) => (freqMap[n] = (freqMap[n] || 0) + 1));
+  last50Numbers.forEach((n) => (freqMap[n] = (freqMap[n] || 0) + 1));
 
-  const hotNumbers = Object.keys(freqMap).filter((n) => freqMap[n] >= 3);
-  const warmNumbers = Object.keys(freqMap).filter((n) => freqMap[n] === 2);
-  const coldNumbers = Object.keys(freqMap).filter((n) => freqMap[n] === 1);
+  // Convert to array and sort by frequency (ascending for cold numbers)
+  const numberFrequencies = Object.entries(freqMap)
+    .map(([num, count]) => ({ num: Number(num), count }))
+    .sort((a, b) => a.count - b.count); // Sort by frequency ascending
 
-  // 📌 Column stats
+  // Top 5 hot numbers (highest frequency) - descending order
+  const hotNumbers = Object.entries(freqMap)
+    .map(([num, count]) => ({ num: Number(num), count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+    .map((item) => item.num);
+
+  // Top 5 cold numbers (lowest frequency) - ascending order
+  const coldNumbers = numberFrequencies
+    .filter((item) => item.count > 0) // Only numbers that have appeared at least once
+    .slice(0, 5) // Top 5 coldest numbers
+    .map((item) => item.num);
+
+  // Column stats
   const columnCounts = { "Col 1": 0, "Col 2": 0, "Col 3": 0 };
   history.forEach((num) => {
     if (num !== 0) {
@@ -28,9 +42,8 @@ export default function AnalyticsDashboard({
     }
   });
 
-  // 📌 Pattern Detector
-  const recent = history.slice(-8); // last 8 spins
-
+  // Pattern Detector
+  const recent = history.slice(-8);
   const dozenTrend = { "1-12": 0, "13-24": 0, "25-36": 0 };
   const columnTrend = { "Col 1": 0, "Col 2": 0, "Col 3": 0 };
 
@@ -55,13 +68,6 @@ export default function AnalyticsDashboard({
     (a, b) => b[1] - a[1]
   )[0];
 
-  // 📌 Top Columns (pattern के हिसाब से)
-  const topColumns = Object.entries(columnTrend)
-    .sort((a, b) => b[1] - a[1])
-    .filter(([_, val]) => val > 0)
-    .slice(0, 2)
-    .map(([col]) => col);
-
   let patternMessage = "Mixed Pattern – no clear trend";
   if (strongestDozen[1] >= 4) {
     patternMessage = `Strong Dozen Trend: ${strongestDozen[0]}`;
@@ -75,97 +81,90 @@ export default function AnalyticsDashboard({
     }`;
   }
 
+  const total = Object.values(dozenCounts).reduce((a, b) => a + b, 0);
+
   return (
-    <div className="w-full bg-white p-3 rounded-lg shadow max-h-72 overflow-y-auto">
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-bold">Analytics</h2>
+    <div className="w-full bg-gray-800 bg-opacity-70 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-gray-700">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xl font-bold text-white">Analytics Dashboard</h2>
         {onRemoveLast && (
           <button
             onClick={onRemoveLast}
             aria-label="Undo last number"
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-yellow-600 text-white hover:bg-yellow-700 transition"
+            className="px-3 py-1 text-sm rounded bg-amber-600 text-white hover:bg-amber-500 transition-all"
           >
             Undo Last
           </button>
         )}
       </div>
 
-      {/* Animated SuggestionDisplay */}
       <SuggestionDisplay topDozens={topDozens} />
 
-      {/* Top Columns */}
-      {topColumns?.length > 0 && (
-        <div className="mb-2 text-sm font-semibold flex flex-wrap gap-2">
-          Top Columns:{" "}
-          {topColumns.map((c, idx) => (
-            <span
-              key={idx}
-              className="bg-blue-600 text-white px-2 py-0.5 rounded text-xs"
-            >
-              {c}
-            </span>
-          ))}
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="bg-gray-700 p-3 rounded-lg">
+          <h3 className="text-sm font-semibold text-amber-400 mb-2">
+            Hot Numbers (Last 50)
+          </h3>
+          <div className="text-xs text-gray-400 mb-2">
+            Top 5 most frequent numbers
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {hotNumbers.length > 0 ? (
+              hotNumbers.map((n) => (
+                <span
+                  key={n}
+                  className="px-2 py-1 bg-red-600 text-white text-xs rounded"
+                >
+                  {n}
+                </span>
+              ))
+            ) : (
+              <span className="text-gray-400 text-xs">None</span>
+            )}
+          </div>
         </div>
-      )}
 
-      {/* Hot/Warm/Cold */}
-      <div className="flex flex-wrap gap-2 text-xs mb-2">
-        {hotNumbers.length > 0 && (
-          <span className="bg-red-500 text-white px-2 py-0.5 rounded">
-            Hot: {hotNumbers.join(", ")}
-          </span>
-        )}
-        {warmNumbers.length > 0 && (
-          <span className="bg-orange-400 text-white px-2 py-0.5 rounded">
-            Warm: {warmNumbers.join(", ")}
-          </span>
-        )}
-        {coldNumbers.length > 0 && (
-          <span className="bg-blue-400 text-white px-2 py-0.5 rounded">
-            Cold: {coldNumbers.join(", ")}
-          </span>
-        )}
+        <div className="bg-gray-700 p-3 rounded-lg">
+          <h3 className="text-sm font-semibold text-amber-400 mb-2">
+            Cold Numbers (Last 50)
+          </h3>
+          <div className="text-xs text-gray-400 mb-2">
+            Top 5 least frequent numbers
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {coldNumbers.length > 0 ? (
+              coldNumbers.map((n) => (
+                <span
+                  key={n}
+                  className="px-2 py-1 bg-blue-600 text-white text-xs rounded"
+                >
+                  {n}
+                </span>
+              ))
+            ) : (
+              <span className="text-gray-400 text-xs">None</span>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Dozen Stats */}
-      <div className="mb-2">
-        <h3 className="text-sm font-semibold mb-1">Dozen Stats</h3>
-        <div className="flex gap-2 text-xs">
-          <div className="flex-1">1-12: {dozenCounts["1-12"]}</div>
-          <div className="flex-1">13-24: {dozenCounts["13-24"]}</div>
-          <div className="flex-1">25-36: {dozenCounts["25-36"]}</div>
-        </div>
-        {/* Dozen Trend */}
-        <div className="flex gap-2 text-xs mt-1">
-          {Object.entries(dozenTrend).map(([key, val]) => (
-            <div key={key} className="flex-1">
-              {key} Trend: {val}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {["1-12", "13-24", "25-36"].map((d) => (
+          <div key={d} className="bg-gray-700 p-2 rounded-lg text-center">
+            <div className="text-xs text-amber-400 mb-1">{d}</div>
+            <div className="text-white font-bold">{dozenCounts[d]}</div>
+            <div className="text-xs text-gray-400">
+              {total ? ((dozenCounts[d] / total) * 100).toFixed(1) : 0}%
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
-      {/* Column Stats */}
-      <div className="mb-2">
-        <h3 className="text-sm font-semibold mb-1">Column Stats</h3>
-        <div className="flex gap-2 text-xs">
-          <div className="flex-1">Col 1: {columnCounts["Col 1"]}</div>
-          <div className="flex-1">Col 2: {columnCounts["Col 2"]}</div>
-          <div className="flex-1">Col 3: {columnCounts["Col 3"]}</div>
-        </div>
-        {/* Column Trend */}
-        <div className="flex gap-2 text-xs mt-1">
-          {Object.entries(columnTrend).map(([key, val]) => (
-            <div key={key} className="flex-1">
-              {key} Trend: {val}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Pattern Detector */}
-      <div className="mt-2 text-sm font-semibold text-emerald-700">
-        {patternMessage}
+      <div className="bg-gray-700 p-3 rounded-lg">
+        <h3 className="text-sm font-semibold text-amber-400 mb-2">
+          Pattern Detection
+        </h3>
+        <div className="text-white text-sm">{patternMessage}</div>
       </div>
     </div>
   );

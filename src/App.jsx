@@ -1,145 +1,72 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import NumberInput from "./components/NumberInput";
-import QuickButtons from "./components/QuickButtons";
+import { useEffect, useState, useRef, useCallback } from "react";
 import RouletteWheel from "./components/RouletteWheel";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import RecentNumbers from "./components/RecentNumbers";
+import QuickButtons from "./components/QuickButtons";
+import NumberInput from "./components/NumberInput";
+import ColorPrediction from "./components/ColorPrediction";
+import ColumnPrediction from "./components/ColumnPrediction";
 
-// European Roulette numbers with colors
-const numbers = [
-  { value: 0, color: "green" },
-  { value: 32, color: "red" },
-  { value: 15, color: "black" },
-  { value: 19, color: "red" },
-  { value: 4, color: "black" },
-  { value: 21, color: "red" },
-  { value: 2, color: "black" },
-  { value: 25, color: "red" },
-  { value: 17, color: "black" },
-  { value: 34, color: "red" },
-  { value: 6, color: "black" },
-  { value: 27, color: "red" },
-  { value: 13, color: "black" },
-  { value: 36, color: "red" },
-  { value: 11, color: "black" },
-  { value: 30, color: "red" },
-  { value: 8, color: "black" },
-  { value: 23, color: "red" },
-  { value: 10, color: "black" },
-  { value: 5, color: "red" },
-  { value: 24, color: "black" },
-  { value: 16, color: "red" },
-  { value: 33, color: "black" },
-  { value: 1, color: "red" },
-  { value: 20, color: "black" },
-  { value: 14, color: "red" },
-  { value: 31, color: "black" },
-  { value: 9, color: "red" },
-  { value: 22, color: "black" },
-  { value: 18, color: "red" },
-  { value: 29, color: "black" },
-  { value: 7, color: "red" },
-  { value: 28, color: "black" },
-  { value: 12, color: "red" },
-  { value: 35, color: "black" },
-  { value: 3, color: "red" },
-  { value: 26, color: "black" },
-];
-
-const STORAGE_KEY = "roulette_state_v1";
+const STORAGE_KEY = "roulette_state_v2";
 const HISTORY_CAP = 500;
 const RECENT_CAP = 12;
 
 export default function App() {
-  const [numbersInput, setNumbersInput] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw).numbersInput || "" : "";
-    } catch {
-      return "";
-    }
-  });
-  const [history, setHistory] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const saved = raw ? JSON.parse(raw) : null;
-      return Array.isArray(saved?.history)
-        ? saved.history.slice(0, HISTORY_CAP)
-        : [];
-    } catch {
-      return [];
-    }
-  });
+  const [numbersInput, setNumbersInput] = useState("");
+  const [history, setHistory] = useState([]);
   const [topDozens, setTopDozens] = useState([]);
-  const [recentNumbers, setRecentNumbers] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const saved = raw ? JSON.parse(raw) : null;
-      if (Array.isArray(saved?.recentItems)) {
-        return saved.recentItems
-          .slice(0, RECENT_CAP)
-          .map((it) => it?.value)
-          .filter((n) => typeof n === "number");
-      }
-      if (Array.isArray(saved?.recentNumbers)) {
-        return saved.recentNumbers.slice(0, RECENT_CAP);
-      }
-      return history.slice(0, RECENT_CAP);
-    } catch {
-      return [];
-    }
-  });
   const [dozenCounts, setDozenCounts] = useState({
     "1-12": 0,
     "13-24": 0,
     "25-36": 0,
   });
-  const [spinAngle, setSpinAngle] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const saved = raw ? JSON.parse(raw) : null;
-      return typeof saved?.spinAngle === "number" ? saved.spinAngle : 0;
-    } catch {
-      return 0;
-    }
-  });
-  const [hoveredNumber, setHoveredNumber] = useState(null);
-  const [recentItems, setRecentItems] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const saved = raw ? JSON.parse(raw) : null;
-      let items = Array.isArray(saved?.recentItems)
-        ? saved.recentItems
-        : (Array.isArray(saved?.recentNumbers)
-            ? saved.recentNumbers
-            : history.slice(0, RECENT_CAP)
-          )
-            .slice(0, RECENT_CAP)
-            .map((n) => ({ value: n, outcome: null, ts: Date.now() }));
-      // ensure well-formed & unique ts ordering
-      items = items
-        .map((it) => ({
-          value: typeof it === "number" ? it : it?.value,
-          outcome: it?.outcome ?? null,
-          ts: typeof it?.ts === "number" ? it.ts : Date.now(),
-        }))
-        .filter((it) => typeof it.value === "number");
-      let lastTs = 0;
-      items = items.slice(0, RECENT_CAP).map((it) => {
-        const nextTs = it.ts <= lastTs ? lastTs + 1 : it.ts;
-        lastTs = nextTs;
-        return { ...it, ts: nextTs };
-      });
-      return items;
-    } catch {
-      return [];
-    }
-  });
+  const [recentItems, setRecentItems] = useState([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Dozen calc for analytics
-  const calculateSuggestion = (nums) => {
+  // Load from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        setNumbersInput(saved.numbersInput || "");
+        setHistory(saved.history || []);
+        setTopDozens(saved.topDozens || []);
+        setDozenCounts(
+          saved.dozenCounts || { "1-12": 0, "13-24": 0, "25-36": 0 }
+        );
+        setRecentItems(saved.recentItems || []);
+      }
+    } catch (e) {
+      console.warn("Failed to load roulette state:", e);
+    } finally {
+      setIsLoaded(true); // Mark as loaded
+    }
+  }, []);
+
+  // Save to localStorage
+  useEffect(() => {
+    if (!isLoaded) return;
+    try {
+      const payload = JSON.stringify({
+        numbersInput,
+        history,
+        topDozens,
+        dozenCounts,
+        recentItems,
+      });
+      localStorage.setItem(STORAGE_KEY, payload);
+    } catch (e) {
+      console.warn("Failed to save roulette state:", e);
+    }
+  }, [numbersInput, history, topDozens, dozenCounts, recentItems, isLoaded]);
+
+  const lastSpinIdRef = useRef(null);
+  const lastAppendTimeRef = useRef(0);
+
+  const calculateSuggestion = useCallback((nums) => {
     let count1 = 0,
       count2 = 0,
       count3 = 0;
@@ -156,119 +83,26 @@ export default function App() {
     sectors.sort((a, b) => b.count - a.count);
     setTopDozens(sectors.slice(0, 2).map((s) => s.name));
     setDozenCounts({ "1-12": count1, "13-24": count2, "25-36": count3 });
-  };
-
-  // Persist to localStorage whenever critical state changes
-  useEffect(() => {
-    try {
-      const payload = JSON.stringify({
-        history,
-        recentNumbers,
-        recentItems,
-        numbersInput,
-        spinAngle,
-      });
-      localStorage.setItem(STORAGE_KEY, payload);
-    } catch (e) {
-      console.warn("[v0] Failed to save roulette state:", e);
-    }
-  }, [history, recentNumbers, recentItems, numbersInput, spinAngle]);
-
-  const lastResultRef = useRef({ value: null, ts: 0 });
-  const DUP_WINDOW_MS = 12000;
-  const SPIN_LOCK_MS = 12000;
-  const spinLockUntilRef = useRef(0);
-  const resultGuardRef = useRef({ active: false, timer: null });
-  const lastSpinIdRef = useRef(null);
-
-  useEffect(() => {
-    return () => {
-      if (resultGuardRef.current.timer) {
-        clearTimeout(resultGuardRef.current.timer);
-        resultGuardRef.current.timer = null;
-      }
-    };
   }, []);
 
-  const handleSpinResult = (res) => {
-    const now = Date.now();
-    const number = typeof res === "number" ? res : res?.value;
-    const spinId = typeof res === "object" ? res?.spinId : undefined;
-    if (typeof number !== "number") return;
+  const appendResult = useCallback(
+    (number, spinId = null) => {
+      const num = parseInt(number);
+      if (isNaN(num) || num < 0 || num > 36) return;
 
-    // Per-spin guard: if same spinId already processed, ignore
-    if (spinId != null) {
-      if (lastSpinIdRef.current === spinId) {
-        return;
-      }
-      lastSpinIdRef.current = spinId;
-    }
-
-    // keep secondary time-based lock (defensive)
-    if (resultGuardRef.current.active) {
-      return;
-    }
-    if (now < spinLockUntilRef.current) {
-      return;
-    }
-    resultGuardRef.current.active = true;
-    if (resultGuardRef.current.timer)
-      clearTimeout(resultGuardRef.current.timer);
-    resultGuardRef.current.timer = setTimeout(() => {
-      resultGuardRef.current.active = false;
-      resultGuardRef.current.timer = null;
-      spinLockUntilRef.current = 0;
-    }, SPIN_LOCK_MS);
-    spinLockUntilRef.current = now + SPIN_LOCK_MS;
-
-    if (history[0] === number) {
-      return;
-    }
-    const { value, ts } = lastResultRef.current;
-    if (value === number && now - ts < DUP_WINDOW_MS) {
-      return;
-    }
-    lastResultRef.current = { value: number, ts: now };
-
-    setHistory((prev) => {
-      const updated = [number, ...prev].slice(0, HISTORY_CAP);
-      setRecentNumbers((prevR) => [number, ...prevR].slice(0, RECENT_CAP));
-      setRecentItems((prevI) => {
-        const lastTs = prevI[0]?.ts || 0;
-        const tsUnique = now <= lastTs ? lastTs + 1 : now;
-        return [{ value: number, outcome: null, ts: tsUnique }, ...prevI].slice(
-          0,
-          RECENT_CAP
-        );
-      });
-      calculateSuggestion(updated);
-      return updated;
-    });
-  };
-
-  const markRecentOutcome = (ts, outcome) => {
-    setRecentItems((prev) =>
-      prev.map((it) => (it.ts === ts ? { ...it, outcome } : it))
-    );
-  };
-
-  const removeLast = () => {
-    setHistory((prev) => {
-      if (!prev.length) return prev;
-      const updated = prev.slice(1);
-      setRecentNumbers((prevR) => (prevR.length ? prevR.slice(1) : prevR));
-      setRecentItems((prevI) => (prevI.length ? prevI.slice(1) : prevI));
-      calculateSuggestion(updated);
-      return updated;
-    });
-  };
-
-  const addNumber = (num) => {
-    if (!isNaN(num) && num >= 0 && num <= 36) {
       const now = Date.now();
-      const updatedHistory = [num, ...history].slice(0, HISTORY_CAP);
-      setHistory(updatedHistory);
-      setRecentNumbers((prev) => [num, ...prev].slice(0, RECENT_CAP));
+      if (spinId !== null && lastSpinIdRef.current === spinId) return;
+      if (spinId !== null) lastSpinIdRef.current = spinId;
+      if (now - lastAppendTimeRef.current < 500) return;
+
+      lastAppendTimeRef.current = now;
+
+      setHistory((prev) => {
+        const updated = [num, ...prev].slice(0, HISTORY_CAP);
+        calculateSuggestion(updated);
+        return updated;
+      });
+
       setRecentItems((prev) => {
         const lastTs = prev[0]?.ts || 0;
         const tsUnique = now <= lastTs ? lastTs + 1 : now;
@@ -277,79 +111,154 @@ export default function App() {
           RECENT_CAP
         );
       });
-      calculateSuggestion(updatedHistory);
-      const randomSpin = Math.floor(Math.random() * 270) + 90;
-      setSpinAngle((prev) => prev + randomSpin);
-    }
-  };
+    },
+    [calculateSuggestion]
+  );
 
-  const handleClear = () => {
-    spinLockUntilRef.current = 0;
-    lastResultRef.current = { value: null, ts: 0 };
-    resultGuardRef.current.active = false;
-    if (resultGuardRef.current.timer) {
-      clearTimeout(resultGuardRef.current.timer);
-      resultGuardRef.current.timer = null;
-    }
+  const handleSpinResult = useCallback(
+    (res) => {
+      const number = typeof res === "number" ? res : res?.value;
+      const spinId = typeof res === "object" ? res?.spinId : undefined;
+      appendResult(number, spinId);
+    },
+    [appendResult]
+  );
+
+  const markRecentOutcome = useCallback((ts, outcome) => {
+    setRecentItems((prev) =>
+      prev.map((it) => (it.ts === ts ? { ...it, outcome } : it))
+    );
+  }, []);
+
+  const removeLast = useCallback(() => {
+    if (history.length === 0) return;
+
+    const updatedHistory = history.slice(1);
+    setHistory(updatedHistory);
+    setRecentItems((prev) => (prev.length > 0 ? prev.slice(1) : []));
+    calculateSuggestion(updatedHistory);
+  }, [history, calculateSuggestion]);
+
+  const addNumber = useCallback(
+    (num) => {
+      appendResult(num);
+    },
+    [appendResult]
+  );
+
+  const handleBet = useCallback((betType) => {
+    // Handle different types of bets
+    console.log("Bet placed on:", betType);
+    // You can implement specific logic for different bet types here
+  }, []);
+
+  const handleClear = useCallback(() => {
     lastSpinIdRef.current = null;
+    lastAppendTimeRef.current = 0;
 
+    setNumbersInput("");
     setHistory([]);
     setTopDozens([]);
-    setRecentNumbers([]);
     setRecentItems([]);
     setDozenCounts({ "1-12": 0, "13-24": 0, "25-36": 0 });
-    setSpinAngle(0);
-    setNumbersInput("");
+
     try {
       localStorage.removeItem(STORAGE_KEY);
-    } catch {}
-  };
+    } catch (e) {
+      console.warn("Failed to clear localStorage:", e);
+    }
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4 gap-6">
-      <div className="flex flex-col md:flex-row gap-6 w-full max-w-6xl">
-        <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <RouletteWheel
-            history={history}
-            spinAngle={spinAngle}
-            hoveredNumber={hoveredNumber}
-            setHoveredNumber={setHoveredNumber}
-            onSpinResult={handleSpinResult}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 relative overflow-hidden">
+      <div className="absolute inset-0 opacity-30">
+        {[...Array(10)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-4 h-4 bg-white rounded-full opacity-10"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
           />
-        </div>
-
-        <div className="flex-1 flex flex-col gap-4">
-          <AnalyticsDashboard
-            history={history}
-            topDozens={topDozens}
-            dozenCounts={dozenCounts}
-            onRemoveLast={removeLast}
-          />
-          <RecentNumbers
-            items={recentItems}
-            numbers={recentNumbers}
-            onRemoveLast={removeLast}
-            onMarkOutcome={markRecentOutcome}
-          />
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleClear}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-            >
-              Clear History
-            </button>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="w-full max-w-4xl flex flex-col gap-4 items-center">
-        <NumberInput
-          numbersInput={numbersInput}
-          setNumbersInput={setNumbersInput}
-          onAddNumber={addNumber}
-        />
-        <QuickButtons onAddNumber={addNumber} />
+      <div className="relative z-10 container mx-auto px-3 py-4 max-w-7xl">
+        {/* Header */}
+        <header className="text-center mb-4">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
+            Roulette Analyzer
+          </h1>
+        </header>
+
+        {/* Main Content - Modified layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-3">
+          {/* Wheel Container */}
+          <div className="lg:col-span-1 bg-gray-800 bg-opacity-50 backdrop-blur-md rounded-xl p-3 border border-gray-700 flex flex-col items-center">
+            <RouletteWheel onSpinResult={handleSpinResult} size={280} />
+
+            {/* Manual Input - Now on the right side of wheel */}
+            <div className="mt-4 w-full">
+              <h3 className="text-sm font-semibold text-amber-400 mb-2 text-center">
+                Manual Input
+              </h3>
+              <div className="flex justify-center">
+                <NumberInput
+                  numbersInput={numbersInput}
+                  setNumbersInput={setNumbersInput}
+                  onAddNumber={addNumber}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-center gap-2 mt-2">
+                <button
+                  onClick={removeLast}
+                  className="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-500"
+                  title="Undo Last"
+                >
+                  ↩ Undo
+                </button>
+                <button
+                  onClick={handleClear}
+                  className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-500"
+                  title="Clear All"
+                >
+                  × Clear
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Buttons Container */}
+          <div className="lg:col-span-2 bg-gray-800 bg-opacity-50 backdrop-blur-md rounded-xl p-3 border border-gray-700">
+            <QuickButtons onAddNumber={addNumber} onBet={handleBet} />
+
+            {/* Recent Numbers - Now placed below the QuickButtons board */}
+            <div className="mt-4">
+              <RecentNumbers
+                items={recentItems}
+                onRemoveLast={removeLast}
+                onMarkOutcome={markRecentOutcome}
+              />
+
+              {/* Color and Column Predictions */}
+              <ColorPrediction history={history} />
+              <ColumnPrediction history={history} />
+            </div>
+          </div>
+
+          {/* Analytics - Made smaller */}
+          <div className="lg:col-span-1 bg-gray-800 bg-opacity-50 backdrop-blur-md rounded-xl p-3 border border-gray-700">
+            <AnalyticsDashboard
+              history={history}
+              topDozens={topDozens}
+              dozenCounts={dozenCounts}
+              onRemoveLast={removeLast}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

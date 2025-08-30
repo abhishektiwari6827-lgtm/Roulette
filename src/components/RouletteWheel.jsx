@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 // European roulette numbers in wheel order with colors
@@ -46,10 +46,10 @@ const WHEEL_NUMBERS = [
 
 export default function RouletteWheel({
   onSpinResult,
-  size = 420,
+  size = 320,
   spinsMin = 6,
   spinsMax = 8,
-  duration = 4, // seconds
+  duration = 4,
   disabled = false,
 }) {
   const prefersReducedMotion = useReducedMotion();
@@ -59,12 +59,19 @@ export default function RouletteWheel({
   const sliceDeg = 360 / WHEEL_NUMBERS.length;
 
   const [isSpinning, setIsSpinning] = useState(false);
-  const [wheelRotate, setWheelRotate] = useState(0); // degrees
+  const [wheelRotate, setWheelRotate] = useState(0);
 
   const currentWRef = useRef(0);
   const spinIdRef = useRef(0);
   const resultEmittedRef = useRef(false);
   const timeoutRef = useRef(null);
+  const spinActiveRef = useRef(false);
+  const onSpinResultRef = useRef(onSpinResult);
+
+  // Update the ref when onSpinResult changes
+  useEffect(() => {
+    onSpinResultRef.current = onSpinResult;
+  }, [onSpinResult]);
 
   useEffect(() => {
     currentWRef.current = wheelRotate;
@@ -76,6 +83,7 @@ export default function RouletteWheel({
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
+      spinActiveRef.current = false;
     };
   }, []);
 
@@ -87,44 +95,61 @@ export default function RouletteWheel({
   const ease = prefersReducedMotion ? "linear" : [0.12, 0.6, 0.04, 1];
   const mod = (n, m) => ((n % m) + m) % m;
 
-  const spinWheel = () => {
-    if (isSpinning || disabled) return;
+  const spinWheel = useCallback(() => {
+    if (spinActiveRef.current || isSpinning || disabled) return;
 
-    spinIdRef.current += 1;
+    spinActiveRef.current = true;
     resultEmittedRef.current = false;
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+
     setIsSpinning(true);
 
     // Pick a random winning pocket index
     const idx = Math.floor(Math.random() * WHEEL_NUMBERS.length);
 
     // Align the mid-angle of the pocket with the fixed pointer at -90deg (top-center)
-    const targetBase = -((idx + 0.5) * sliceDeg); // degrees
+    const targetBase = -((idx + 0.5) * sliceDeg);
     const currentW = currentWRef.current;
 
     // Ensure we spin forward by full spins plus delta to align exactly to targetBase
     const spins =
       Math.floor(Math.random() * (spinsMax - spinsMin + 1)) + spinsMin;
-    const deltaToBase = mod(targetBase - currentW, 360); // minimal forward delta to align modulo 360
+    const deltaToBase = mod(targetBase - currentW, 360);
     const targetW = currentW + spins * 360 + deltaToBase;
 
     const d = prefersReducedMotion ? 0.6 : duration;
     setWheelRotate(targetW);
 
-    const thisSpinId = spinIdRef.current;
+    const thisSpinId = ++spinIdRef.current;
+
+    // Use the ref instead of the prop directly
     timeoutRef.current = window.setTimeout(() => {
       if (!resultEmittedRef.current && thisSpinId === spinIdRef.current) {
         resultEmittedRef.current = true;
-        onSpinResult &&
-          onSpinResult({ value: WHEEL_NUMBERS[idx].value, spinId: thisSpinId });
+        if (onSpinResultRef.current) {
+          onSpinResultRef.current({
+            value: WHEEL_NUMBERS[idx].value,
+            spinId: thisSpinId,
+          });
+        }
       }
       setIsSpinning(false);
+      spinActiveRef.current = false;
       timeoutRef.current = null;
     }, d * 1000);
-  };
+  }, [
+    isSpinning,
+    disabled,
+    sliceDeg,
+    spinsMin,
+    spinsMax,
+    duration,
+    prefersReducedMotion,
+  ]);
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -146,7 +171,7 @@ export default function RouletteWheel({
               height="28"
               viewBox="0 0 32 28"
               aria-hidden="true"
-              className="drop-shadow-[0_3px_6px_rgba(0,0,0,0.45)]"
+              className="drop-shadow-[0_3px_6px rgba(0,0,0,0.45)]"
             >
               <polygon
                 points="16,0 28,20 4,20"
@@ -162,7 +187,7 @@ export default function RouletteWheel({
           <motion.svg
             width={size}
             height={size}
-            viewBox={`"0 0 ${size} ${size}"`.replace(/"/g, "")}
+            viewBox={`0 0 ${size} ${size}`}
             animate={{ rotate: wheelRotate }}
             transition={{
               duration: prefersReducedMotion ? 0.6 : duration,
@@ -171,7 +196,7 @@ export default function RouletteWheel({
             style={{ originX: "50%", originY: "50%" }}
             role="img"
             aria-label="Roulette wheel"
-            className="pointer-events-none drop-shadow-[0_12px_28px_rgba(0,0,0,0.35)]"
+            className="pointer-events-none drop-shadow-[0_12px_28px rgba(0,0,0,0.35)]"
           >
             {/* Outer metallic rim and felt ring */}
             <circle cx={center} cy={center} r={radius} fill="#0a3d2e" />
@@ -313,7 +338,7 @@ export default function RouletteWheel({
         type="button"
         onClick={spinWheel}
         disabled={isSpinning || disabled}
-        className="px-6 py-2 rounded-lg bg-emerald-700 text-white shadow-md hover:bg-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="px-6 py-2 rounded-lg bg-amber-600 text-white shadow-md hover:bg-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-60 disabled:cursor-not-allowed"
         whileHover={!isSpinning && !disabled ? { scale: 1.04 } : {}}
         whileTap={!isSpinning && !disabled ? { scale: 0.96 } : {}}
       >
