@@ -1,5 +1,3 @@
-"use client";
-
 export default function NumberInput({
   numbersInput,
   setNumbersInput,
@@ -20,20 +18,20 @@ export default function NumberInput({
   };
 
   return (
-    <div className="flex w-full max-w-xs shadow-lg rounded-lg overflow-hidden bg-gray-700 border border-gray-600">
+    <div className="flex w-full max-w-md shadow rounded overflow-hidden">
       <input
         type="number"
         min="0"
         max="36"
-        placeholder="Number (0-36)"
+        placeholder="Enter a number (0-36)"
         value={numbersInput}
         onChange={(e) => setNumbersInput(e.target.value)}
         onKeyDown={handleKeyPress}
-        className="flex-1 p-2 border-0 bg-transparent outline-none text-white text-sm placeholder-gray-400"
+        className="flex-1 p-2 border border-gray-300 outline-none"
       />
       <button
         onClick={handleAddClick}
-        className="px-3 bg-amber-600 text-white text-sm font-medium hover:bg-amber-500 transition-all"
+        className="px-4 bg-blue-600 text-white font-semibold hover:bg-blue-700"
       >
         Add
       </button>
